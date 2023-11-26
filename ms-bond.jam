@@ -1,0 +1,170 @@
+# Copyright 2023 Alexey Malyshev (alexey dot malyshev at outlook dot ie)
+# Copyright 2012 Liping Zhang (zhanglpg at gmail dot com)
+# Copyright 2010 Rodrigo Pinho Pereira de Souza ( pinhopro at gmail dot com )
+#
+# Distributed under the Boost Software License, Version 1.0. (See
+# accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
+
+import type ;
+import generators ;
+import feature ;
+import common ;
+import "class" : new ;
+
+import os ;
+
+import modules ;
+import project ;
+import toolset : flags ;
+
+type.register BOND : bond ;
+
+project.initialize $(__name__) ;
+project ms-bond ;
+
+.project = [ project.current ] ;
+.bond_out_path = ms-bond ;
+
+# Helper utils for easy debug output
+if [ MATCH (--debug-configuration) : [ modules.peek : ARGV ] ]
+{
+  .debug-configuration = TRUE ;
+}
+
+local rule debug-message ( message * )
+{
+  if $(.debug-configuration) = TRUE
+  {
+    ECHO "notice: [bond-cfg]" $(message) ;
+  }
+}
+
+rule init ( prefix * : condition * )
+{
+  project.push-current $(.project) ;
+  
+  if ! $(prefix) 
+  {
+	.prefix = [ os.environ BOND_ROOT ] ;
+  }
+  else
+  {
+    .prefix = $(prefix) ;
+  }
+
+  .incprefix = $(.prefix) ;
+  .libprefix = $(.prefix)/lib ;
+  .binprefix = $(.prefix)/bin ;
+
+  debug-message "rule init (" $(.prefix) "," $(condition) ")" ;
+  debug-message "include path: " $(.incprefix) ;
+  debug-message "library path: " $(.libprefix) ;
+  debug-message "bin path" $(.binprefix) ;
+  debug-message "ms-bond out path" $(.bond_out_path) ;
+
+  if ! $(.initialized)
+  {
+    .initialized = true ;
+    debug-message "initializing ms-bond..." ;
+
+    debug-message "registering bond type " ;
+
+    debug-message "registering gbc compiler " ;
+    generators.register [ new bond-generator ms-bond.gbc : BOND : CPP H ] ;
+
+    .PREFIX = $(prefix) ;
+    debug-message "ms-bond initialized." ;
+  }
+
+  debug-message "setup path for gbc tool" ;
+  toolset.flags ms-bond.gbc .BINPREFIX : $(.binprefix) ;
+
+  toolset.flags ms-bond.gbc .BONDOUTPATH : $(.bond_out_path) ;
+
+  lib bond       : : <search>$(.libprefix) ;
+  lib bond_apply : : <search>$(.libprefix) ;
+    
+  alias ms-bond
+      : 
+      bond 
+      bond_apply
+      /user-config//rapidjson
+      : # no build requirements
+      : # no default build
+      : 
+      <include>$(.incprefix)
+      <include>$(.bond_out_path)
+  ;
+  
+  project.pop-current ;
+
+  debug-message "module bond initialized" ;
+}
+
+rule initialized ( )
+{
+  return $(.initialized) ;
+}
+
+rule get_bond_out_path ( )
+{
+	return $(.bond_out_path) ;
+}
+
+class bond-generator : generator 
+{
+    import "class" : new ;
+	
+	import ms-bond : get_bond_out_path ;
+
+    rule __init__ ( * : * )
+    {
+        generator.__init__ $(1) : $(2) : $(3) : $(4) : $(5) : $(6) : $(7) : $(8) : $(9) ;
+    }
+
+    rule run ( project name ? : property-set : sources * )
+    {
+        for source in $(sources)
+        {
+            # Accept only single source.
+            local t = [ $(source).type ] ;
+   
+            if $(t) = BOND
+            {
+                # The type is correct.
+
+                # If no output name is specified, guess it from sources.
+                if ! $(name)
+                {
+                    name = [ generator.determine-output-name $(source) ] ;
+                }
+				
+				local bond_out_path = [ get_bond_out_path ] ;
+                
+                local a = [ new action $(source) : ms-bond.gbc : $(property-set) ] ;
+
+                local target1 = [ new file-target $(name)_apply      : CPP : $(project) : $(a) : $(bond_out_path) ] ;
+                local target2 = [ new file-target $(name)_types      : CPP : $(project) : $(a) : $(bond_out_path) ] ;
+                local target3 = [ new file-target $(name)_types      : H   : $(project) : $(a) : $(bond_out_path) ] ;
+                local target4 = [ new file-target $(name)_reflection : H   : $(project) : $(a) : $(bond_out_path) ] ;
+                local target5 = [ new file-target $(name)_apply      : H   : $(project) : $(a) : $(bond_out_path) ] ;
+                local target6 = [ new file-target $(name)_enum       : H   : $(project) : $(a) : $(bond_out_path) ] ;
+    
+                return [ virtual-target.register $(target4) ]
+                       [ virtual-target.register $(target2) ]
+                       [ virtual-target.register $(target3) ]
+                       [ virtual-target.register $(target1) ]
+                       [ virtual-target.register $(target5) ]
+                       [ virtual-target.register $(target6) ]
+                ;
+            }
+        }
+    }
+}
+
+actions gbc
+{
+  echo gbc c++ $(>)
+  $(.BINPREFIX[-1])/gbc c++ --enum-header $(>) -o $(.BONDOUTPATH)
+}
