@@ -11,16 +11,36 @@ This source code was adapted from Liping Zhang (zhanglpg at gmail dot com)'s cod
 ```
 import modules : load ;
 
-alias rapidjson
-    : # no sources
-    : # no build requirements
-    : # no default build
-    : <include>/path/to/rapidjson/include     # /path/to/rapidjson folder where the rapidjson library is located
-;
-
 load ms-bond : : /usr/bjam ;                  # /usr/bjam folder where the ms-bond.jam file is located
 
-using ms-bond : /usr/local : ;                # /usr/local folder where the gbc compiler is located
+using ms-bond ;
+```
+
+3. user-config.jam provide include and link paths to bond files eg
+
+```
+project 
+   : requirements
+	 <toolset>msvc:<linkflags>"/LIBPATH:c:/usr/win-x86_64/lib"
+	 <include>"c:/usr/include"
+;
+```
+
+```	 
+using gcc : arm_32 : /usr/arm-gcc :
+        <linkflags>"-L$(BOOST_ROOT)/stage/linux-arm_32/lib"
+        <linkflags>"-L/usr/local/lib_arm32"
+        ;
+
+using gcc : arm_64 : /usr/aarch64-gcc :
+        <linkflags>"-L$(BOOST_ROOT)/stage/linux-arm_64/lib"
+        <linkflags>"-L/usr/local/lib_aarch64"
+        ;
+
+using gcc : x86_64 : gcc :
+        <linkflags>"-L$(BOOST_ROOT)/stage/linux-x86_64/lib"
+        <linkflags>"-L/usr/local/lib"
+        ;
 ```
 
 4. a. Simple exe

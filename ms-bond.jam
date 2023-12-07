@@ -40,27 +40,11 @@ local rule debug-message ( message * )
   }
 }
 
-rule init ( prefix * : condition * )
+rule init 	
 {
   project.push-current $(.project) ;
   
-  if ! $(prefix) 
-  {
-	.prefix = [ os.environ BOND_ROOT ] ;
-  }
-  else
-  {
-    .prefix = $(prefix) ;
-  }
-
-  .incprefix = $(.prefix) ;
-  .libprefix = $(.prefix)/lib ;
-  .binprefix = $(.prefix)/bin ;
-
   debug-message "rule init (" $(.prefix) "," $(condition) ")" ;
-  debug-message "include path: " $(.incprefix) ;
-  debug-message "library path: " $(.libprefix) ;
-  debug-message "bin path" $(.binprefix) ;
   debug-message "ms-bond out path" $(.bond_out_path) ;
 
   if ! $(.initialized)
@@ -73,27 +57,21 @@ rule init ( prefix * : condition * )
     debug-message "registering gbc compiler " ;
     generators.register [ new bond-generator ms-bond.gbc : BOND : CPP H ] ;
 
-    .PREFIX = $(prefix) ;
     debug-message "ms-bond initialized." ;
   }
 
-  debug-message "setup path for gbc tool" ;
-  toolset.flags ms-bond.gbc .BINPREFIX : $(.binprefix) ;
-
   toolset.flags ms-bond.gbc .BONDOUTPATH : $(.bond_out_path) ;
 
-  lib bond       : : <search>$(.libprefix) ;
-  lib bond_apply : : <search>$(.libprefix) ;
+  lib bond       : : : <name>bond ;
+  lib bond_apply : : : <name>bond_apply ;
     
   alias ms-bond
       : 
       bond 
       bond_apply
-      /user-config//rapidjson
       : # no build requirements
       : # no default build
       : 
-      <include>$(.incprefix)
       <include>$(.bond_out_path)
   ;
   
@@ -166,5 +144,5 @@ class bond-generator : generator
 actions gbc
 {
   echo gbc c++ $(>)
-  $(.BINPREFIX[-1])/gbc c++ --enum-header $(>) -o $(.BONDOUTPATH)
+  gbc c++ --enum-header $(>) -o $(.BONDOUTPATH)
 }
