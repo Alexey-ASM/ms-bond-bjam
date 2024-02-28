@@ -11,6 +11,8 @@ This source code was adapted from Liping Zhang (zhanglpg at gmail dot com)'s cod
 ```
 import modules : load ;
 
+# next to lanes should be at the end of the user-config.jam file
+
 load ms-bond : : /usr/bjam ;                  # /usr/bjam folder where the ms-bond.jam file is located
 
 using ms-bond ;
